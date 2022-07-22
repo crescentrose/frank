@@ -9,58 +9,35 @@ gemfile do
   gem 'dotenv', require: 'dotenv/load' # load config from .env file
 end
 
+require_relative 'pending_message.rb'
+
 bot = Discordrb::Bot.new(token: ENV.fetch('DISCORD_BOT_TOKEN'))
-approvals_channel = ENV.fetch('APPROVALS_CHANNEL_ID')
-sink_channel = ENV.fetch('SINK_CHANNEL_ID')
 
 pending_messages = {}
-PendingMessage = Struct.new(:origin, :approval, :content, keyword_init: true)
 
-bot.direct_message do |dm|
-  approval_actions = Discordrb::Webhooks::View.new
-  approval_actions.row do |row|
-    row.button style: :success, label: 'Approve', custom_id: 'approve'
-    row.button style: :danger, label: 'Reject', custom_id: 'reject'
-  end
 
-  # stupid api not using kwargs
-  message = bot.send_message(
-    approvals_channel,
-    dm.message.content,
-    false, nil, nil, nil, nil,
-    approval_actions
-  )
-
-  dm.message.react('✔️')
-  pending_messages[message.id] = PendingMessage.new(origin: dm.message, approval: message, content: dm.message.content)
+bot.direct_message do |event|
+  message = PendingMessage.new(origin: event.message)
+  message.propose(bot)
+  pending_messages[message.id] = message
 end
 
 bot.button(custom_id: 'approve') do |event|
   message = pending_messages[event.message.id]
   next if message.nil?
 
-  bot.send_message(
-    sink_channel,
-    message.content
-  )
-  message.origin.delete_own_reaction('✔️')
-  message.approval.edit(message.content, nil, [])
-  event.defer_update 
+  message.approve(bot)
+  event.defer_update # we don't respond with a message, so just let discord know we are live 
   pending_messages[event.message.id] = nil
-  message.origin.react('✅')
-  message.approval.react('✅')
 end
 
 bot.button(custom_id: 'reject') do |event|
   message = pending_messages[event.message.id]
   next if message.nil?
 
-  message.origin.delete_own_reaction('✔️')
-  message.approval.edit(message.content, nil, [])
+  message.reject
   event.defer_update 
   pending_messages[event.message.id] = nil
-  message.origin.react('⛔')
-  message.approval.react('⛔')
 end
 
 bot.run
