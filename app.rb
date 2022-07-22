@@ -10,9 +10,11 @@ gemfile do
 end
 
 bot = Discordrb::Bot.new(token: ENV.fetch('DISCORD_BOT_TOKEN'))
+approvals_channel = ENV.fetch('APPROVALS_CHANNEL_ID')
+sink_channel = ENV.fetch('SINK_CHANNEL_ID')
 
-bot.message(with_text: 'Ping!') do |event|
-  event.respond 'Pong!'
+bot.direct_message do |dm|
+  bot.send_message(approvals_channel, dm.message)
 end
 
 bot.run
