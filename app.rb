@@ -15,7 +15,6 @@ bot = Discordrb::Bot.new(token: ENV.fetch('DISCORD_BOT_TOKEN'))
 
 pending_messages = {}
 
-
 bot.direct_message do |event|
   message = PendingMessage.new(origin: event.message)
   message.propose(bot)

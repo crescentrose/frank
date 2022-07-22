@@ -7,6 +7,8 @@ class PendingMessage
   APPROVED_REACTION = '✅'
   REJECTED_REACTION = '⛔'
 
+  TRIPCODE_REGEX = /(\w+#\w+)\z/
+
   def initialize(origin:)
     @origin = origin
     @content = origin.content
@@ -48,7 +50,21 @@ class PendingMessage
   
   private
 
-  attr_reader :origin, :approver, :content
+  attr_reader :origin, :approver
+
+  def content
+    @content.strip.gsub(TRIPCODE_REGEX, '') + signature
+  end
+
+  # sign message with User#password 
+  def signature
+    if @content.strip =~ TRIPCODE_REGEX
+      code = Tripcode.parse($1)
+      "**#{code[0]}!#{code[1]}**"
+    else
+      ''
+    end
+  end
 
   def approval_actions
     actions = Discordrb::Webhooks::View.new
