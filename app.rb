@@ -34,6 +34,15 @@ bot.button(custom_id: 'approve') do |event|
   pending_messages[event.message.id] = nil
 end
 
+bot.button(custom_id: 'nsfw') do |event|
+  message = pending_messages[event.message.id]
+  next if message.nil?
+
+  message.approve(bot, to: PendingMessage::NSFW_CHANNEL, react_with: PendingMessage::NSFW_REACTION)
+  event.defer_update
+  pending_messages[event.message.id] = nil
+end
+
 bot.button(custom_id: 'reject') do |event|
   message = pending_messages[event.message.id]
   next if message.nil?

@@ -2,9 +2,11 @@
 class PendingMessage
   APPROVALS_CHANNEL = ENV.fetch('APPROVALS_CHANNEL_ID')
   SINK_CHANNEL = ENV.fetch('SINK_CHANNEL_ID')
+  NSFW_CHANNEL = ENV.fetch('NSFW_CHANNEL_ID')
 
   PENDING_REACTION = '☑️'
   APPROVED_REACTION = '✅'
+  NSFW_REACTION = '🔞'
   REJECTED_REACTION = '⛔'
 
   TRIPCODE_REGEX = /(\w+#\w+)\z/
@@ -27,24 +29,24 @@ class PendingMessage
     origin_react(PENDING_REACTION)
   end
 
-  def approve(bot)
+  def approve(bot, to: SINK_CHANNEL, react_with: APPROVED_REACTION)
     mark_processed!
 
     bot.send_message(
-      SINK_CHANNEL,
+      to,
       content,
       false,
       signature_embed
     )
 
-    approver.react(APPROVED_REACTION)
-    origin_react(APPROVED_REACTION)
+    approver.react(react_with)
+    origin_react(react_with)
   end
 
-  def reject
+  def reject(react_with: REJECTED_REACTION)
     mark_processed!
-    approver.react(REJECTED_REACTION)
-    origin_react(REJECTED_REACTION)
+    approver.react(react_with)
+    origin_react(react_with)
   end
 
   def id
@@ -79,6 +81,7 @@ class PendingMessage
     actions = Discordrb::Webhooks::View.new
     actions.row do |row|
       row.button style: :success, label: 'Approve', custom_id: 'approve'
+      row.button style: :secondary, label: 'NSFW', custom_id: 'nsfw'
       row.button style: :danger, label: 'Reject', custom_id: 'reject'
     end
 
