@@ -6,8 +6,12 @@ gemfile do
 
   gem 'discordrb', github: 'shardlab/discordrb', branch: 'main' # discord API, dev version
   gem 'tripcode', '~> 1.0.1' # 4chan compatible tripcodes
-  gem 'dotenv', require: 'dotenv/load' # load config from .env file
+  gem 'dotenv' # load config from .env file
 end
+
+# load appropriate application configuration
+APP_ENV = ENV.fetch("APP_ENV", "production")
+Dotenv.load(".env.#{APP_ENV}", '.env')
 
 require_relative 'pending_message.rb'
 

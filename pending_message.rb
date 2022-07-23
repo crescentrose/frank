@@ -8,6 +8,7 @@ class PendingMessage
   REJECTED_REACTION = '⛔'
 
   TRIPCODE_REGEX = /(\w+#\w+)\z/
+  TRIPCODE_COLOUR = Discordrb::ColourRGB.new(0x20f200)
 
   def initialize(origin:)
     @origin = origin
@@ -19,7 +20,7 @@ class PendingMessage
     @approver = bot.send_message(
       APPROVALS_CHANNEL,
       content,
-      false, nil, nil, nil, nil,
+      false, signature_embed, nil, nil, nil,
       approval_actions
     )
 
@@ -32,6 +33,8 @@ class PendingMessage
     bot.send_message(
       SINK_CHANNEL,
       content,
+      false,
+      signature_embed
     )
 
     approver.react(APPROVED_REACTION)
@@ -58,12 +61,18 @@ class PendingMessage
 
   # sign message with User#password 
   def signature
-    if @content.strip =~ TRIPCODE_REGEX
-      code = Tripcode.parse($1)
-      "**#{code[0]}!#{code[1]}**"
-    else
-      ''
-    end
+    @signature ||= if @content.strip =~ TRIPCODE_REGEX
+                     code = Tripcode.parse($1)
+                     "**#{code[0]}!#{code[1]}**"
+                   else
+                     ''
+                   end
+  end
+
+  def signature_embed
+    return nil if signature.empty?
+
+    Discordrb::Webhooks::Embed.new(description: "✅ message signed")
   end
 
   def approval_actions
