@@ -1,5 +1,32 @@
+require 'open-uri'
+
 # Abstraction layer to keep track of messages pending approval in memory
 class PendingMessage
+  class Attachment
+    class << self
+      def open(url)
+        new(URI.open(url), File.basename(url))
+      end
+    end
+    
+    def initialize(downloaded, name)
+      @file = Tempfile.new(['kiracord', File.extname(name)])
+      @file.write(downloaded.read)
+      @file.rewind
+      downloaded.close
+    end
+
+    private
+
+    def method_missing(method, *args, &block)
+      @file.public_send(method, *args, &block)
+    end
+
+    def respond_to_missing?(name, include_private = false)
+      @file.respond_to?(name, include_private)
+    end
+  end
+
   APPROVALS_CHANNEL = ENV.fetch('APPROVALS_CHANNEL_ID')
   SINK_CHANNEL = ENV.fetch('SINK_CHANNEL_ID')
   NSFW_CHANNEL = ENV.fetch('NSFW_CHANNEL_ID')
@@ -15,6 +42,7 @@ class PendingMessage
   def initialize(origin:)
     @origin = origin
     @content = origin.content
+    @attachments = origin.attachments.map { |a| Attachment.open(a.url) }
   end
 
   def propose(bot)
@@ -22,7 +50,7 @@ class PendingMessage
     @approver = bot.send_message(
       APPROVALS_CHANNEL,
       content,
-      false, signature_embed, nil, nil, nil,
+      false, signature_embed, attachments, nil, nil,
       approval_actions
     )
 
@@ -36,7 +64,8 @@ class PendingMessage
       to,
       content,
       false,
-      signature_embed
+      signature_embed,
+      attachments
     )
 
     approver.react(react_with)
@@ -55,7 +84,7 @@ class PendingMessage
   
   private
 
-  attr_reader :origin, :approver
+  attr_reader :origin, :approver, :attachments
 
   def content
     @content.strip.gsub(TRIPCODE_REGEX, '') + signature
@@ -74,7 +103,7 @@ class PendingMessage
   def signature_embed
     return nil if signature.empty?
 
-    Discordrb::Webhooks::Embed.new(description: "✅ message signed")
+    Discordrb::Webhooks::Embed.new(description: "✅ message signed with **#{signature}**")
   end
 
   def approval_actions

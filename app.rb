@@ -52,4 +52,15 @@ bot.button(custom_id: 'reject') do |event|
   event.defer_update 
 end
 
-bot.run
+begin
+  bot.run
+rescue Interrupt => e
+  unless pending_messages.empty?
+    pending_messages.each { |id, message| message.reject(react_with: '💤') }
+    bot.send_message(
+      PendingMessage::APPROVALS_CHANNEL,
+      "💤 Flushing #{pending_messages.size} messages from the queue due to bot shutdown. All pending messages were rejected.",
+    )
+  end
+  bot.stop
+end 
