@@ -30,25 +30,23 @@ bot.button(custom_id: 'approve') do |event|
   next if message.nil?
 
   message.approve(bot)
-  pending_messages[event.message.id] = nil
+  pending_messages.delete(event.message.id)
   event.defer_update # we don't respond with a message, so just let discord know we are live 
 end
 
 bot.button(custom_id: 'nsfw') do |event|
-  message = pending_messages[event.message.id]
+  message = pending_messages.delete(event.message.id)
   next if message.nil?
 
   message.approve(bot, to: PendingMessage::NSFW_CHANNEL, react_with: PendingMessage::NSFW_REACTION)
-  pending_messages[event.message.id] = nil
   event.defer_update
 end
 
 bot.button(custom_id: 'reject') do |event|
-  message = pending_messages[event.message.id]
+  message = pending_messages.delete(event.message.id)
   next if message.nil?
 
   message.reject
-  pending_messages[event.message.id] = nil
   event.defer_update 
 end
 

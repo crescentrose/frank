@@ -2,7 +2,7 @@ require 'open-uri'
 
 # Abstraction layer to keep track of messages pending approval in memory
 class PendingMessage
-  class Attachment
+  class Attachment 
     class << self
       def open(url)
         new(URI.open(url), File.basename(url))
@@ -16,8 +16,17 @@ class PendingMessage
       downloaded.close
     end
 
+    def close
+      @file.rewind # we do a little trolling
+    end
+
+    def close!
+      @file.close
+    end
+
     private
 
+    # this is just a wrapper class so delegate all other methods to the one we are immitating
     def method_missing(method, *args, &block)
       @file.public_send(method, *args, &block)
     end
@@ -70,12 +79,16 @@ class PendingMessage
 
     approver.react(react_with)
     origin_react(react_with)
+  ensure
+    attachments.each(&:close!)
   end
 
   def reject(react_with: REJECTED_REACTION)
     mark_processed!
     approver.react(react_with)
     origin_react(react_with)
+  ensure
+    attachments.each(&:close!)
   end
 
   def id
