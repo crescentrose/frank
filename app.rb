@@ -42,11 +42,11 @@ bot.button(custom_id: 'nsfw') do |event|
   event.defer_update
 end
 
-bot.button(custom_id: 'spoiler') do |event|
+bot.button(custom_id: 'serious') do |event|
   message = pending_messages.delete(event.message.id)
   next if message.nil?
 
-  message.approve(bot) { |message| "||#{message}|| (spoiler tags indicate sensitive content)" }
+  message.approve(bot, to: PendingMessage::SERIOUS_CHANNEL)
   event.defer_update
 end
 

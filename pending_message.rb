@@ -38,7 +38,8 @@ class PendingMessage
 
   APPROVALS_CHANNEL = ENV.fetch('APPROVALS_CHANNEL_ID')
   SINK_CHANNEL = ENV.fetch('SINK_CHANNEL_ID')
-  NSFW_CHANNEL = ENV.fetch('NSFW_CHANNEL_ID')
+  NSFW_CHANNEL = ENV.fetch('NSFW_CHANNEL_ID', SINK_CHANNEL)
+  SERIOUS_CHANNEL = ENV.fetch('SERIOUS_CHANNEL_ID', SINK_CHANNEL)
 
   PENDING_REACTION = '☑️'
   APPROVED_REACTION = '✅'
@@ -125,7 +126,7 @@ class PendingMessage
     actions.row do |row|
       row.button style: :success, label: 'Approve', custom_id: 'approve'
       row.button style: :secondary, label: 'NSFW', custom_id: 'nsfw'
-      row.button style: :secondary, label: 'Spoiler', custom_id: 'spoiler'
+      row.button style: :secondary, label: 'Serious', custom_id: 'serious'
       row.button style: :danger, label: 'Reject', custom_id: 'reject'
     end
 
