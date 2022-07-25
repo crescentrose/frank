@@ -68,10 +68,11 @@ class PendingMessage
 
   def approve(bot, to: SINK_CHANNEL, react_with: APPROVED_REACTION)
     mark_processed!
+    formatted_content = block_given? ? yield(content) : content
 
     bot.send_message(
       to,
-      content,
+      formatted_content,
       false,
       signature_embed,
       attachments
@@ -124,6 +125,7 @@ class PendingMessage
     actions.row do |row|
       row.button style: :success, label: 'Approve', custom_id: 'approve'
       row.button style: :secondary, label: 'NSFW', custom_id: 'nsfw'
+      row.button style: :secondary, label: 'Spoiler', custom_id: 'spoiler'
       row.button style: :danger, label: 'Reject', custom_id: 'reject'
     end
 
