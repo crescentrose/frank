@@ -47,7 +47,7 @@ class PendingMessage
   REJECTED_REACTION = '⛔'
 
   TRIPCODE_REGEX = /(\w+#\w+)\z/
-  TRIPCODE_COLOUR = Discordrb::ColourRGB.new(0x20f200)
+  EMBED_COLOUR = Discordrb::ColourRGB.new(0x52394f)
 
   def initialize(origin:)
     @origin = origin
@@ -59,8 +59,8 @@ class PendingMessage
     # stupid api not using kwargs, have to pad out the fucking arguments
     @approver = bot.send_message(
       APPROVALS_CHANNEL,
-      content,
-      false, signature_embed, attachments, nil, nil,
+      '',
+      false, message_embed, attachments, nil, nil,
       approval_actions
     )
 
@@ -69,13 +69,12 @@ class PendingMessage
 
   def approve(bot, to: SINK_CHANNEL, react_with: APPROVED_REACTION)
     mark_processed!
-    formatted_content = block_given? ? yield(content) : content
 
     bot.send_message(
       to,
-      formatted_content,
+      '',
       false,
-      signature_embed,
+      message_embed,
       attachments
     )
 
@@ -102,14 +101,14 @@ class PendingMessage
   attr_reader :origin, :approver, :attachments
 
   def content
-    @content.strip.gsub(TRIPCODE_REGEX, '') + signature
+    @content.strip.gsub(TRIPCODE_REGEX, '')
   end
 
   # sign message with User#password 
   def signature
     @signature ||= if @content.strip =~ TRIPCODE_REGEX
                      code = Tripcode.parse($1)
-                     "**#{code[0]}!#{code[1]}**"
+                     "#{code[0]}!#{code[1]}"
                    else
                      ''
                    end
@@ -118,7 +117,16 @@ class PendingMessage
   def signature_embed
     return nil if signature.empty?
 
-    Discordrb::Webhooks::Embed.new(description: "✅ message signed with **#{signature}**")
+    Discordrb::Webhooks::EmbedFooter.new(text: "✅ message signed by #{signature}")
+  end
+
+  def message_embed
+    embed = Discordrb::Webhooks::Embed.new(
+      title: 'Message received',
+      description: content,
+      colour: EMBED_COLOUR,
+      footer: signature_embed
+    )
   end
 
   def approval_actions
@@ -134,7 +142,7 @@ class PendingMessage
   end
 
   def mark_processed!
-    approver.edit(content, nil, []) # remove buttons
+    approver.edit('', message_embed, []) # remove buttons
   end
 
   def origin_react(reaction)
