@@ -30,12 +30,11 @@ bot.button(custom_id: 'approve') do |event|
   next if message.nil?
 
   message.approve(bot)
-  pending_messages.delete(event.message.id)
   event.defer_update # we don't respond with a message, so just let discord know we are live 
 end
 
 bot.button(custom_id: 'nsfw') do |event|
-  message = pending_messages.delete(event.message.id)
+  message = pending_messages[event.message.id]
   next if message.nil?
 
   message.approve(bot, to: PendingMessage::NSFW_CHANNEL, react_with: PendingMessage::NSFW_REACTION)
@@ -43,7 +42,7 @@ bot.button(custom_id: 'nsfw') do |event|
 end
 
 bot.button(custom_id: 'serious') do |event|
-  message = pending_messages.delete(event.message.id)
+  message = pending_messages[event.message.id]
   next if message.nil?
 
   message.approve(bot, to: PendingMessage::SERIOUS_CHANNEL)
@@ -51,16 +50,35 @@ bot.button(custom_id: 'serious') do |event|
 end
 
 bot.button(custom_id: 'reject') do |event|
-  message = pending_messages.delete(event.message.id)
+  message = pending_messages[event.message.id]
   next if message.nil?
 
   message.reject
   event.defer_update 
 end
 
+bot.button(custom_id: 'undo') do |event|
+  message = pending_messages[event.message.id]
+  next if message.nil?
+
+  message.undo(bot)
+  event.defer_update
+end
+
+cleanup_thread = Thread.new do
+  loop do
+    sleep 5
+    pending_messages.reject! { |k, v| v.delete_outdated }
+  end
+end
+
 begin
   bot.run
 rescue Interrupt => e
+  puts " --- BOT SHUTDOWN ---"
+  cleanup_thread.terminate
+  pending_messages.reject! { |k, v| v.confirm_pending }
+
   unless pending_messages.empty?
     pending_messages.each { |id, message| message.reject(react_with: '💤') }
     bot.send_message(

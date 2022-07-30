@@ -45,6 +45,7 @@ class PendingMessage
   APPROVED_REACTION = '✅'
   NSFW_REACTION = '🔞'
   REJECTED_REACTION = '⛔'
+  UNDO_REACTION = '↩️'
 
   TRIPCODE_REGEX = /(\w+#\w+)\z/
   EMBED_COLOUR = Discordrb::ColourRGB.new(0x52394f)
@@ -53,13 +54,15 @@ class PendingMessage
     @origin = origin
     @content = origin.content
     @attachments = origin.attachments.map { |a| Attachment.open(a.url) }
+    @processed_at = nil
+    @sink = nil
   end
 
   def propose(bot)
     # stupid api not using kwargs, have to pad out the fucking arguments
     @approver = bot.send_message(
       APPROVALS_CHANNEL,
-      '',
+      content,
       false, message_embed, attachments, nil, nil,
       approval_actions
     )
@@ -70,9 +73,9 @@ class PendingMessage
   def approve(bot, to: SINK_CHANNEL, react_with: APPROVED_REACTION)
     mark_processed!
 
-    bot.send_message(
+    @sink = bot.send_message(
       to,
-      '',
+      content,
       false,
       message_embed,
       attachments
@@ -80,25 +83,47 @@ class PendingMessage
 
     approver.react(react_with)
     origin_react(react_with)
-  ensure
-    attachments.each(&:close!)
   end
 
   def reject(react_with: REJECTED_REACTION)
     mark_processed!
     approver.react(react_with)
     origin_react(react_with)
-  ensure
-    attachments.each(&:close!)
+  end
+
+  def undo(bot)
+    approver.react(UNDO_REACTION)
+    sink.delete('undo confession send') unless sink.nil?
+    unmark_processed! 
   end
 
   def id
     approver.id
   end
-  
+
+  def delete_outdated
+    return false unless cleanupable?
+
+    mark_final!
+    true
+  end
+
+  def confirm_pending
+    return false if processed_at.nil?
+
+    mark_final!
+    true
+  end
+
   private
 
-  attr_reader :origin, :approver, :attachments
+  attr_reader :origin, :approver, :attachments, :processed_at, :sink
+
+  def cleanupable?
+    return false if processed_at.nil?
+
+    Time.now - processed_at > 15 # seconds to undo
+  end
 
   def content
     @content.strip.gsub(TRIPCODE_REGEX, '')
@@ -114,18 +139,12 @@ class PendingMessage
                    end
   end
 
-  def signature_embed
+  def message_embed
     return nil if signature.empty?
 
-    Discordrb::Webhooks::EmbedFooter.new(text: "✅ message signed by #{signature}")
-  end
-
-  def message_embed
-    embed = Discordrb::Webhooks::Embed.new(
-      title: 'Message received',
-      description: content,
+    Discordrb::Webhooks::Embed.new(
       colour: EMBED_COLOUR,
-      footer: signature_embed
+      description: "✅ message signed by #{signature}"
     )
   end
 
@@ -141,8 +160,29 @@ class PendingMessage
     actions
   end
 
+  def undo_action
+    actions = Discordrb::Webhooks::View.new
+    actions.row do |row|
+      row.button style: :secondary, label: 'Undo', custom_id: 'undo'
+    end
+
+    actions
+  end
+
   def mark_processed!
-    approver.edit('', message_embed, []) # remove buttons
+    @processed_at = Time.now
+    approver.edit(content, message_embed, undo_action)
+  end
+
+  def unmark_processed!
+    @processed_at = nil
+    approver.edit(content, message_embed, approval_actions)
+  end
+
+  def mark_final!
+    approver.edit(content, message_embed, [])
+  ensure
+    attachments.each(&:close!)
   end
 
   def origin_react(reaction)
